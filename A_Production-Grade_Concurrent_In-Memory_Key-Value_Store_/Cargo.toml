@@ -4,3 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# Async Runtime & Networking
+tokio={version="1.38" , features=["full"]}
+
+# Production Error Handling
+thiserror="1.0"
+anyhow="1.0"
+
+# Logging & Observability
+
+tracing="0.1"
+tracing-subscriber="0.3"
