@@ -162,7 +162,7 @@ rust-projects/
 Clone the repository
 
 ```bash
-git clone https://github.com/<username>/rust-projects.git
+git clone https://github.com/<username>/RustVault.git
 ```
 
 Move into a project
