@@ -51,7 +51,7 @@ impl Db{
             let map = self.shared.read().await;
             match map.get(key) {
                 Some(entry) if !entry.is_expired() => return Some(entry.value.clone()),
-                Some(_) => {} // expired -> নিচে গিয়ে write lock দিয়ে মুছব
+                Some(_) => {} 
                 None => return None,
             }
         }
@@ -62,7 +62,6 @@ impl Db{
                 map.remove(key);
                 None
             } else {
-                // ডাবল-চেক: এই ফাঁকে অন্য টাস্ক নতুন ভ্যালু সেট করে থাকতে পারে
                 Some(entry.value.clone())
             }
         } else {
@@ -79,7 +78,6 @@ impl Db{
         map.retain(|_, entry| !entry.is_expired());
     }
 
-    /// টেস্ট/অবজারভেবিলিটির জন্য — বর্তমানে কতগুলো key স্টোরেজে আছে।
     pub async fn len(&self) -> usize {
         self.shared.read().await.len()
     }

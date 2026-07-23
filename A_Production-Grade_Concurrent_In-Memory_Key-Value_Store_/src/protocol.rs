@@ -38,13 +38,12 @@ pub fn parse_command(line: &str) -> Result<Command, VaultError> {
         },
 
         "SET" => match parts.as_slice() {
-            // SET key value  (কোনো TTL নেই)
+          
             [_, key, value] => Ok(Command::Set {
                 key: key.to_string(),
                 value: value.to_string(),
                 ttl: None,
             }),
-            // SET key value EX seconds
             [_, key, value, ex_kw, secs] if ex_kw.eq_ignore_ascii_case("EX") => {
                 let secs: u64 = secs
                     .parse()
