@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use axum::response::{IntoResponse,Response};
-
+use axum::extract::Query;
 pub enum ApiError{
     NotFound(String)
 }
@@ -35,6 +35,19 @@ pub struct Task {
 #[derive(Deserialize)]
 pub struct CreateTask {
     title: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateTask {
+    title: String,
+    done:bool
+}
+
+
+
+#[derive(Deserialize)]
+pub struct TaskFilter{
+    done:Option<bool>
 }
 
 #[tokio::main]
@@ -80,14 +93,14 @@ async fn delete_task(State(db): State<Db>, Path(id): Path<u32>) -> Result<Status
 async fn update_task(
     State(db): State<Db>,
     Path(id): Path<u32>,
-    Json(payload): Json<CreateTask>,
+    Json(payload): Json<UpdateTask>,
 ) -> Result<Json<Task>, ApiError> {
     let mut db = db.lock().unwrap();
 
     match db.get_mut(&id) {
         Some(task) => {
             task.title = payload.title;
-            task.done = true;
+            task.done = payload.done;
             Ok(Json(task.clone()))
         }
         None => Err(ApiError::NotFound(format!("Task Not found {}",id))),
@@ -110,8 +123,13 @@ async fn create_user(
     (StatusCode::CREATED, Json(task))
 }
 
-async fn list_tasks(State(db): State<Db>) -> Json<Vec<Task>> {
+async fn list_tasks(State(db): State<Db>,Query(filter): Query<TaskFilter>) -> Json<Vec<Task>> {
     let db = db.lock().unwrap();
-    let tasks = db.values().cloned().collect();
+    let tasks = db.values().filter(|task| {
+        match filter.done{
+            Some(done)=>task.done==done,
+            None=>true
+        }
+    }).cloned().collect();
     Json(tasks)
 }
