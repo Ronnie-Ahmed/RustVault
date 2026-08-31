@@ -88,11 +88,12 @@ async fn update_user(
     }
 }
 
-async fn delete_user(State(db): State<Db>,Path(id): Path<u32>)->ApiError{
+
+async fn delete_user(State(db): State<Db>,Path(id): Path<u32>)->Result<StatusCode,ApiError>{
     let mut db=db.lock().unwrap();
     match db.remove(&id){
-        Some(_)=>ApiError::NotFound(format!("Successfully deleted {}",id)),
-        None => ApiError::NotFound(format!("Not found {}",id))
+        Some(_)=>Ok(StatusCode::NO_CONTENT),
+        None => Err(ApiError::NotFound(format!("Not found {}",id)))
     }
 }
 
