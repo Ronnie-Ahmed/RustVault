@@ -67,9 +67,7 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn test() -> &'static str {
-    "Hello world"
-}
+
 
 async fn get_task_by_id(
     State(db): State<Db>,
