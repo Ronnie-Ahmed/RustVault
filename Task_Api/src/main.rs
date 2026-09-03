@@ -60,10 +60,10 @@ async fn main() {
             put(update_task).get(get_task_by_id).delete(delete_task),
         )
         .with_state(db);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .unwrap();
-    println!("Listeting on port http://127.0.0.1:3000");
+    println!("Listeting on port http://0.0.0.0:3000");
     axum::serve(listener, app).await.unwrap();
 }
 
