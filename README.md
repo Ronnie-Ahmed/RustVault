@@ -14,7 +14,7 @@ The goal of this repository is to:
 - Build production-quality Rust applications.
 - Practice ownership, lifetimes, traits, async programming, and concurrency.
 - Explore systems programming and backend development.
-- Document interesting Rust patterns and best practices.
+
 
 ---
 
