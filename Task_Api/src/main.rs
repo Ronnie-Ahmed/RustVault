@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::println;
+use std::{format, println};
 use std::sync::{Arc, Mutex};
 use axum::response::{IntoResponse,Response};
 use axum::extract::Query;
@@ -24,11 +24,12 @@ impl IntoResponse for ApiError{
     }
 }
 
-type Db = Arc<Mutex<HashMap<u32, Task>>>;
+// type Db = Arc<Mutex<HashMap<u32, Task>>>;
+type Db=sqlx::PgPool;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone,sqlx::FromRow)]
 pub struct Task {
-    id: u32,
+    id: i32,
     title: String,
     done: bool,
 }
@@ -57,9 +58,10 @@ async fn main() {
     let database_url=std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool=sqlx::postgres::PgPoolOptions::new().max_connections(5).connect(&database_url).await.expect("Failed to connect to database");
     println!("Connected to database successfully");
-    let db = Arc::new(Mutex::new(HashMap::new()));
+    // let db = Arc::new(Mutex::new(HashMap::new()));
+    let db=pool;
     let app = Router::new()
-        .route("/task", post(create_user).get(list_tasks))
+        .route("/task", post(create_task).get(list_tasks))
         .route(
             "/task/{id}",
             put(update_task).get(get_task_by_id).delete(delete_task),
@@ -76,53 +78,75 @@ async fn main() {
 
 async fn get_task_by_id(
     State(db): State<Db>,
-    Path(id): Path<u32>,
+    Path(id): Path<i32>,
 ) -> Result<Json<Task>, ApiError> {
-    let db = db.lock().unwrap();
-    match db.get(&id) {
-        Some(task) => Ok(Json(task.clone())),
+
+    let task=sqlx::query_as::<_,Task>(
+        "SELECT id,title,done FROM tasks WHERE id=$1"
+    ).bind(id).fetch_optional(&db).await.unwrap();
+
+    // let db = db.lock().unwrap();
+    match task {
+        Some(task) => Ok(Json(task)),
         None => Err(ApiError::NotFound(format!("task not found {}" , id))),
     }
 }
 
-async fn delete_task(State(db): State<Db>, Path(id): Path<u32>) -> Result<StatusCode,ApiError> {
-    let mut db = db.lock().unwrap();
-    match db.remove(&id) {
-        Some(_) => Ok(StatusCode::NO_CONTENT),
-        None => Err(ApiError::NotFound(format!("task not found {}" , id))),
+async fn delete_task(State(db): State<Db>, Path(id): Path<i32>) -> Result<StatusCode,ApiError> {
+    // let mut db = db.lock().unwrap();
+    let result=sqlx::query("DELETE FROM tasks WHERE id=$1").bind(id).execute(&db).await.unwrap();
+    // match db.remove(&id) {
+    //     Some(_) => Ok(StatusCode::NO_CONTENT),
+    //     None => Err(ApiError::NotFound(format!("task not found {}" , id))),
+    // }
+    if result.rows_affected()==0{
+        Err(ApiError::NotFound(format!("task not found {}",id)))
+    }else {
+        Ok(StatusCode::NO_CONTENT)
     }
 }
 
 async fn update_task(
     State(db): State<Db>,
-    Path(id): Path<u32>,
+    Path(id): Path<i32>,
     Json(payload): Json<UpdateTask>,
 ) -> Result<Json<Task>, ApiError> {
-    let mut db = db.lock().unwrap();
-
-    match db.get_mut(&id) {
-        Some(task) => {
-            task.title = payload.title;
-            task.done = payload.done;
-            Ok(Json(task.clone()))
-        }
-        None => Err(ApiError::NotFound(format!("Task Not found {}",id))),
+    // let mut db = db.lock().unwrap();
+    let result=sqlx::query_as::<_,Task>(
+        "UPDATE tasks SET title=$1 , done=$2 WHERE id=$3 RETURNING id,title,done"
+    ).bind(payload.title).bind(payload.done).bind(id).fetch_optional(&db).await.unwrap();
+    match result{
+        Some(task)=>Ok(Json(task)),
+         None => Err(ApiError::NotFound(format!("Task Not found {}", id))),
     }
+
+
+    // match db.get_mut(&id) {
+    //     Some(task) => {
+    //         task.title = payload.title;
+    //         task.done = payload.done;
+    //         Ok(Json(task.clone()))
+    //     }
+    //     None => Err(ApiError::NotFound(format!("Task Not found {}",id))),
+    // }
 }
 
-async fn create_user(
+async fn create_task(
     State(db): State<Db>,
     Json(payload): Json<CreateTask>,
 ) -> (StatusCode, Json<Task>) {
-    let mut db = db.lock().unwrap();
-    let id = db.len() as u32 + 1;
+    // let mut db = db.lock().unwrap();
+    // let id = db.len() as u32 + 1;
+    let task=sqlx::query_as::<_,Task>(
+        "INSERT INTO tasks (title,done) VALUES ($1,false) RETURNING id, title,done"
+    ).bind(payload.title).fetch_one(&db).await.unwrap();
 
-    let task = Task {
-        id: id,
-        title: payload.title,
-        done: false,
-    };
-    db.insert(id, task.clone());
+    // let task = Task {
+    //     id: id,
+    //     title: payload.title,
+    //     done: false,
+    // };
+    // db.insert(id, task.clone());
     (StatusCode::CREATED, Json(task))
 }
 
