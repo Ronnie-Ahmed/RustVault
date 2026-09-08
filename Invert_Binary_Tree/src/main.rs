@@ -74,20 +74,20 @@ impl TreeNode {
 // }
 
 fn main() {
-    //    let node4=TreeNode::new(4);
-    //    let node5=TreeNode::new(5);
-    //    let mut node2=TreeNode::new(2);
-    //    node2.left=Some(Box::new(node4));
-    //    node2.right=Some(Box::new(node5));
+       let node4=TreeNode::new(4);
+       let node5=TreeNode::new(5);
+       let mut node2=TreeNode::new(2);
+       node2.left=Some(Box::new(node4));
+       node2.right=Some(Box::new(node5));
 
-    //    let node3=TreeNode::new(3);
-    //    let mut root=TreeNode::new(1);
-    //    root.left=Some(Box::new(node2));
-    //    root.right=Some(Box::new(node3));
+       let node3=TreeNode::new(3);
+       let mut root=TreeNode::new(1);
+       root.left=Some(Box::new(node2));
+       root.right=Some(Box::new(node3));
     //    println!("{:?}", root);
-
-    let root = TreeNode::new(1);
-    root.preorder();
-    root.postorder();
-    root.inorder();
+    println!(" preorder {:?}", root.preorder());
+    println!(" postorder {:?}", root.postorder());
+    println!(" inorder {:?}", root.inorder());
+    
+ 
 }
