@@ -19,13 +19,7 @@ impl MyStack{
 
     }
     fn pop(&mut self) -> i32 {
-        let length=self.queue.len();
-        for _ in  0..length-1{
-            if let Some(value) = self.queue.pop_front() {
-                self.queue.push_back(value);
-                
-            }
-        }
+        
         self.queue.pop_front().unwrap()
     }
 
