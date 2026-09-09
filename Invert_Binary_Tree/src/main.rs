@@ -1,4 +1,4 @@
-use std::print;
+use std::{print, println};
 
 #[derive(Debug, Clone)]
 struct TreeNode {
@@ -6,6 +6,8 @@ struct TreeNode {
     left: Option<Box<TreeNode>>,
     right: Option<Box<TreeNode>>,
 }
+
+mod invert;
 
 impl TreeNode {
     fn new(val: i32) -> Self {
@@ -44,6 +46,25 @@ impl TreeNode {
         }
         print!("{} ", self.val);
     }
+    fn level_order(&self) {
+        print!("{} ", self.val);
+        if let Some(n) = &self.left {
+            n.level_order();
+        }
+        if let Some(n) = &self.right {
+            n.level_order();
+        }
+    }
+
+    fn invert(&mut self) {
+        std::mem::swap(&mut self.left, &mut self.right);
+        if let Some(node) = &mut self.left {
+            node.invert();
+        }
+        if let Some(node) = &mut self.right {
+            node.invert();
+        }
+    }
 }
 
 // fn preorder(node:&Option<Box<TreeNode>>){
@@ -74,20 +95,19 @@ impl TreeNode {
 // }
 
 fn main() {
-       let node4=TreeNode::new(4);
-       let node5=TreeNode::new(5);
-       let mut node2=TreeNode::new(2);
-       node2.left=Some(Box::new(node4));
-       node2.right=Some(Box::new(node5));
-
-       let node3=TreeNode::new(3);
-       let mut root=TreeNode::new(1);
-       root.left=Some(Box::new(node2));
-       root.right=Some(Box::new(node3));
-    //    println!("{:?}", root);
+    let node4 = TreeNode::new(4);
+    let node5 = TreeNode::new(5);
+    let mut node2 = TreeNode::new(2);
+    node2.left = Some(Box::new(node4));
+    node2.right = Some(Box::new(node5));
+    let node3 = TreeNode::new(3);
+    let mut root = TreeNode::new(1);
+    root.left = Some(Box::new(node2));
+    root.right = Some(Box::new(node3));
+    println!("Root Invert {:?} ", root.invert());
     println!(" preorder {:?}", root.preorder());
     println!(" postorder {:?}", root.postorder());
     println!(" inorder {:?}", root.inorder());
-    
- 
+    println!("Level Order {:?}", root.level_order());
+    println!("Root Invert {:?} ", root.invert());
 }
