@@ -4,12 +4,9 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{
     Json, Router,
-    routing::{delete, get, post, put},
+    routing::{post, put},
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::{format, println};
 pub enum ApiError {
     NotFound(String),
 }
@@ -32,11 +29,13 @@ pub struct Task {
     id: i32,
     title: String,
     done: bool,
+    user_id:i32,
 }
 
 #[derive(Deserialize)]
 pub struct CreateTask {
     title: String,
+    user_id:i32,
 }
 
 #[derive(Deserialize)]
@@ -75,7 +74,7 @@ async fn main() {
 }
 
 async fn get_task_by_id(State(db): State<Db>, Path(id): Path<i32>) -> Result<Json<Task>, ApiError> {
-    let task = sqlx::query_as::<_, Task>("SELECT id,title,done FROM tasks WHERE id=$1")
+    let task = sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE id=$1")
         .bind(id)
         .fetch_optional(&db)
         .await
@@ -113,7 +112,7 @@ async fn update_task(
 ) -> Result<Json<Task>, ApiError> {
     // let mut db = db.lock().unwrap();
     let result = sqlx::query_as::<_, Task>(
-        "UPDATE tasks SET title=$1 , done=$2 WHERE id=$3 RETURNING id,title,done",
+        "UPDATE tasks SET title=$1 , done=$2 WHERE id=$3 RETURNING id,title,done,user_id",
     )
     .bind(payload.title)
     .bind(payload.done)
@@ -143,9 +142,10 @@ async fn create_task(
     // let mut db = db.lock().unwrap();
     // let id = db.len() as u32 + 1;
     let task = sqlx::query_as::<_, Task>(
-        "INSERT INTO tasks (title,done) VALUES ($1,false) RETURNING id, title,done",
+        "INSERT INTO tasks (title,done,user_id) VALUES ($1,false,$2) RETURNING id, title,done,user_id",
     )
     .bind(payload.title)
+    .bind(payload.user_id)
     .fetch_one(&db)
     .await
     .unwrap();
@@ -169,12 +169,12 @@ async fn list_tasks(State(db): State<Db>, Query(filter): Query<TaskFilter>) -> J
     // }).cloned().collect();
     // Json(tasks)
     let tasks = match filter.done {
-        Some(done) => sqlx::query_as::<_, Task>("SELECT id,title,done FROM tasks WHERE done=$1")
+        Some(done) => sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE done=$1")
             .bind(done)
             .fetch_all(&db)
             .await
             .unwrap(),
-        None => sqlx::query_as::<_, Task>("SELECT id,title,done FROM tasks")
+        None => sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks")
             .fetch_all(&db)
             .await
             .unwrap(),
