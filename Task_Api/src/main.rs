@@ -7,6 +7,10 @@ use axum::{
     routing::{post, put},
 };
 use serde::{Deserialize, Serialize};
+use argon2::{Argon2, PasswordHasher, password_hash};
+use argon2::password_hash::{SaltString,rand_core::OsRng};
+use argon2::{PasswordVerifier,PasswordHash};
+use jsonwebtoken::{encode,Header,EncodingKey};
 pub enum ApiError {
     NotFound(String),
 }
@@ -23,6 +27,13 @@ impl IntoResponse for ApiError {
 
 // type Db = Arc<Mutex<HashMap<u32, Task>>>;
 type Db = sqlx::PgPool;
+
+#[derive(Serialize,Deserialize)]
+struct Claims{
+    sub:i32,
+    exp:usize,
+}
+
 
 #[derive(Serialize, Clone, sqlx::FromRow)]
 pub struct Task {
@@ -49,6 +60,31 @@ pub struct TaskFilter {
     done: Option<bool>,
 }
 
+#[derive(Deserialize)]
+pub struct RegisterUser{
+    username:String,
+    password:String,
+}
+
+#[derive(Deserialize)]
+pub struct LoginUser{
+    username:String,
+    password:String,
+}
+
+#[derive(Serialize)]
+pub struct LoginResponse{
+    token :String,
+}
+
+
+
+#[derive(sqlx::FromRow)]
+struct UserRow{
+    id:i32,
+    password_hash:String,
+}
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
@@ -67,11 +103,65 @@ async fn main() {
             "/task/{id}",
             put(update_task).get(get_task_by_id).delete(delete_task),
         )
+        .route("/register", post(register))
+        .route("/login", post(login))
         .with_state(db);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Listeting on port http://0.0.0.0:3000");
     axum::serve(listener, app).await.unwrap();
 }
+
+
+async fn login(
+    State(db): State<Db>,
+    Json(payload): Json<LoginUser>,
+)->Result<Json<LoginResponse>,ApiError>{
+    let user=sqlx::query_as::<_,UserRow>(
+        "SELECT id,password_hash FROM users WHERE username= $1"
+    ).bind(&payload.username)
+    .fetch_optional(&db)
+    .await
+    .unwrap();
+
+    let user=user.ok_or(ApiError::NotFound("invalid username or password".to_string()))?;
+    let valid=verify_password(&payload.password, &user.password_hash).unwrap();
+    if !valid{
+        return Err(ApiError::NotFound("Invalid username or password".to_string()));
+    }
+    let token=create_jwt(user.id);
+    Ok(Json(LoginResponse { token }))
+}
+
+fn create_jwt(user_id:i32)->String{
+    let secret=std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let expiration=chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(24))
+        .expect("Valid timestamp")
+        .timestamp() as usize;
+
+    let claims=Claims{
+        sub:user_id,
+        exp:expiration,
+    };
+    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap()
+}
+
+async fn register(
+    State(db): State<Db>,
+    Json(payload): Json<RegisterUser>,
+)-> Result<StatusCode,ApiError>{
+    let password_hash=hash_password(&payload.password).unwrap();
+
+    sqlx::query("INSERT INTO users (username,password_hash) VALUES ($1,$2)")
+        .bind(payload.username)
+        .bind(password_hash)
+        .execute(&db)
+        .await
+        .unwrap();
+
+    Ok(StatusCode::CREATED)
+}
+
 
 async fn get_task_by_id(State(db): State<Db>, Path(id): Path<i32>) -> Result<Json<Task>, ApiError> {
     let task = sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE id=$1")
@@ -180,4 +270,16 @@ async fn list_tasks(State(db): State<Db>, Query(filter): Query<TaskFilter>) -> J
             .unwrap(),
     };
     Json(tasks)
+}
+
+fn hash_password(password:&str)->Result<String,argon2::password_hash::Error>{
+    let salt=SaltString::generate(&mut OsRng);
+    let argon2=Argon2::default();
+    let password_hash=argon2.hash_password(password.as_bytes(), &salt)?.to_string();
+    Ok(password_hash)
+}
+
+fn verify_password(password: &str, hash: &str) -> Result<bool, argon2::password_hash::Error> {
+    let parsed_hash = PasswordHash::new(hash)?;
+    Ok(Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok())
 }
