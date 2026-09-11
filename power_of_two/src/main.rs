@@ -17,7 +17,7 @@
     }
 
 fn main() {
-   let value=power_of_two(3);
+   let value=is_power_of_two(3);
     println!("{}",value);
 }
 
