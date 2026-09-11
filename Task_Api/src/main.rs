@@ -11,8 +11,45 @@ use argon2::{Argon2, PasswordHasher, password_hash};
 use argon2::password_hash::{SaltString,rand_core::OsRng};
 use argon2::{PasswordVerifier,PasswordHash};
 use jsonwebtoken::{encode,Header,EncodingKey};
+use axum::extract::FromRequestParts;
+use axum::http::request::Parts;
+use jsonwebtoken::{decode, DecodingKey, Validation};
+pub struct AuthUser {
+    pub user_id: i32,
+}
 pub enum ApiError {
     NotFound(String),
+}
+
+impl<S> FromRequestParts<S> for AuthUser
+where
+    S: Send + Sync,
+{
+    type Rejection = ApiError;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let auth_header = parts
+            .headers
+            .get("Authorization")
+            .and_then(|value| value.to_str().ok())
+            .ok_or(ApiError::NotFound("missing authorization header".to_string()))?;
+
+        let token = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or(ApiError::NotFound("invalid authorization header".to_string()))?;
+
+        let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+
+        let claims = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(secret.as_bytes()),
+            &Validation::default(),
+        )
+        .map_err(|_| ApiError::NotFound("invalid or expired token".to_string()))?
+        .claims;
+
+        Ok(AuthUser { user_id: claims.sub })
+    }
 }
 
 impl IntoResponse for ApiError {
