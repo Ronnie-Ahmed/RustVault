@@ -83,7 +83,6 @@ pub struct Task {
 #[derive(Deserialize)]
 pub struct CreateTask {
     title: String,
-    user_id:i32,
 }
 
 #[derive(Deserialize)]
@@ -200,9 +199,10 @@ async fn register(
 }
 
 
-async fn get_task_by_id(State(db): State<Db>, Path(id): Path<i32>) -> Result<Json<Task>, ApiError> {
-    let task = sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE id=$1")
+async fn get_task_by_id(State(db): State<Db>, Path(id): Path<i32>,auth:AuthUser) -> Result<Json<Task>, ApiError> {
+    let task = sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE id=$1 AND user_id=$2")
         .bind(id)
+        .bind(auth.user_id)
         .fetch_optional(&db)
         .await
         .unwrap();
@@ -214,10 +214,11 @@ async fn get_task_by_id(State(db): State<Db>, Path(id): Path<i32>) -> Result<Jso
     }
 }
 
-async fn delete_task(State(db): State<Db>, Path(id): Path<i32>) -> Result<StatusCode, ApiError> {
+async fn delete_task(State(db): State<Db>, Path(id): Path<i32>,auth:AuthUser) -> Result<StatusCode, ApiError> {
     // let mut db = db.lock().unwrap();
-    let result = sqlx::query("DELETE FROM tasks WHERE id=$1")
+    let result = sqlx::query("DELETE FROM tasks WHERE id=$1 AND user_id=$2")
         .bind(id)
+        .bind(auth.user_id)
         .execute(&db)
         .await
         .unwrap();
@@ -235,15 +236,17 @@ async fn delete_task(State(db): State<Db>, Path(id): Path<i32>) -> Result<Status
 async fn update_task(
     State(db): State<Db>,
     Path(id): Path<i32>,
+    auth:AuthUser,
     Json(payload): Json<UpdateTask>,
 ) -> Result<Json<Task>, ApiError> {
     // let mut db = db.lock().unwrap();
     let result = sqlx::query_as::<_, Task>(
-        "UPDATE tasks SET title=$1 , done=$2 WHERE id=$3 RETURNING id,title,done,user_id",
+        "UPDATE tasks SET title=$1 , done=$2 WHERE id=$3  AND user_id=$4 RETURNING id,title,done,user_id",
     )
     .bind(payload.title)
     .bind(payload.done)
     .bind(id)
+    .bind(auth.user_id)
     .fetch_optional(&db)
     .await
     .unwrap();
@@ -264,6 +267,7 @@ async fn update_task(
 
 async fn create_task(
     State(db): State<Db>,
+    auth:AuthUser,
     Json(payload): Json<CreateTask>,
 ) -> (StatusCode, Json<Task>) {
     // let mut db = db.lock().unwrap();
@@ -272,7 +276,7 @@ async fn create_task(
         "INSERT INTO tasks (title,done,user_id) VALUES ($1,false,$2) RETURNING id, title,done,user_id",
     )
     .bind(payload.title)
-    .bind(payload.user_id)
+    .bind(auth.user_id)
     .fetch_one(&db)
     .await
     .unwrap();
@@ -286,7 +290,7 @@ async fn create_task(
     (StatusCode::CREATED, Json(task))
 }
 
-async fn list_tasks(State(db): State<Db>, Query(filter): Query<TaskFilter>) -> Json<Vec<Task>> {
+async fn list_tasks(State(db): State<Db>, Query(filter): Query<TaskFilter>,auth:AuthUser) -> Json<Vec<Task>> {
     // let db = db.lock().unwrap();
     // let tasks = db.values().filter(|task| {
     //     match filter.done{
@@ -296,12 +300,14 @@ async fn list_tasks(State(db): State<Db>, Query(filter): Query<TaskFilter>) -> J
     // }).cloned().collect();
     // Json(tasks)
     let tasks = match filter.done {
-        Some(done) => sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE done=$1")
+        Some(done) => sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE done=$1 AND user_id=$2")
             .bind(done)
+            .bind(auth.user_id)
             .fetch_all(&db)
             .await
             .unwrap(),
-        None => sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks")
+        None => sqlx::query_as::<_, Task>("SELECT id,title,done,user_id FROM tasks WHERE user_id=$1")
+            .bind(auth.user_id)
             .fetch_all(&db)
             .await
             .unwrap(),
