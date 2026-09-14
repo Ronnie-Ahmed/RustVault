@@ -35,7 +35,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
     loop {
         tokio::select! {
             // Message arrives from THIS client
-            Some(Ok(msg)) = 
+            Some(Ok(msg)) = socket.recv() => {
                 if let Message::Text(text) = msg {
                     let _ = state.tx.send(text.to_string());
                     let db=state.db.clone();
