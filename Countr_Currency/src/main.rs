@@ -81,6 +81,7 @@ async fn main() {
     println!("Server Started AT : http://0.0.0.0:3003");
     axum::serve(listener, app).await.unwrap();
     
+    
 }
 
 async fn get_currency_rate(country: &str, ) -> Result<CountryCurrency, String> {
