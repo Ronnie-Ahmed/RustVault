@@ -6,11 +6,9 @@ use redis::AsyncCommands;
 
 use axum::{
     Router,
-    extract::Query,
-    response::{IntoResponse, Response},
     routing::get,
 };
-use axum::routing::delete;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize,Serialize, Clone, sqlx::FromRow)]
@@ -57,7 +55,7 @@ async fn main() {
         .await
         .expect("failed to connect to database");
     println!("Connected to database Successfully");
-    let db = pool;
+    
     let state=AppState{db:pool,redis:redis_conn};
 
     let app = Router::new().route("/home", get(test)).route("/product", post(create_product).get(list_product))
@@ -119,7 +117,7 @@ async fn cache_get<T: for<'a> Deserialize<'a>>(
 }
 
 async fn create_product(
-    State(db): State<Db>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateProduct>,
 ) -> (StatusCode, Json<Product>) {
     let build_product = sqlx::query_as::<_, Product>(
@@ -127,16 +125,22 @@ async fn create_product(
     INSERT INTO product (content,is_sold) VALUES ($1,false) RETURNING  id,content,is_sold",
     )
     .bind(payload.content)
-    .fetch_one(&db)
+    .fetch_one(&state.db)
     .await
     .unwrap();
 
+    let cache_key=format!("product:{}",build_product.id);
+    let mut redis=state.redis.clone();
+    if let Err(err)=cache_set(&mut redis, &cache_key, &build_product, 60*6).await{
+         eprintln!("Redis SET error : {}",err);
+    }
     (StatusCode::CREATED, Json(build_product))
 }
 
-async fn list_product(State(db): State<Db>) -> Json<Vec<Product>> {
+async fn list_product(State(state): State<AppState>) -> Json<Vec<Product>> {
+    
     let all_product = sqlx::query_as::<_, Product>("SELECT id ,content,is_sold FROM product")
-        .fetch_all(&db)
+        .fetch_all(&state.db)
         .await
         .unwrap();
 
@@ -144,23 +148,39 @@ async fn list_product(State(db): State<Db>) -> Json<Vec<Product>> {
 }
 
 async fn update_product(
-    State(db): State<Db>,
+    State(state): State<AppState>,
     Path(id): Path<i32>,
     Json(payload): Json<UpdateProduct>,
 ) -> Result<Json<Product>, StatusCode> {
-    let u_product = sqlx::query_as::<_, Product>(
+    // let cache_key=format!("product:{}",id);
+    // let mut redis=state.redis.clone();
+    // match cache_get::<Product>(&mut redis, &cache_key).await
+    let product = sqlx::query_as::<_, Product>(
         "UPDATE product SET content=$1 ,is_sold=$2 WHERE id=$3 RETURNING  id,content,is_sold",
     )
     .bind(payload.content)
     .bind(payload.is_sold)
     .bind(id)
-    .fetch_optional(&db)
+    .fetch_optional(&state.db)
     .await
     .unwrap();
-    match u_product {
-        Some(productt) => Ok(Json(productt)),
-        None => Err(StatusCode::NOT_FOUND),
+    let product = match product {
+        Some(product) => product,
+        None => return Err(StatusCode::NOT_FOUND),
+    };
+
+    // Invalidate cache
+    let cache_key = format!("product:{}", id);
+    let mut redis = state.redis.clone();
+
+    if let Err(error) = redis::cmd("DEL")
+        .arg(&cache_key)
+        .query_async::<()>(&mut redis)
+        .await
+    {
+        eprintln!("Redis DEL error: {}", error);
     }
+    Ok(Json(product))
 }
 
 async fn get_product_by_id(
@@ -199,18 +219,12 @@ async fn get_product_by_id(
     .fetch_optional(&state.db)
     .await
     .unwrap();
-    if let Some(product) = get_product.clone()  {
-        cache_set(&mut redis, &cache_key, &product, 60*5).await;
-        
-    }
-
-
    let product= match get_product {
         Some(productt) => productt,
         None =>return Err(StatusCode::NOT_FOUND),
     };
 
-    if let Err(error) = cache_set(&mut redis, &cache_key, &product, 5*30).await{
+    if let Err(error) = cache_set(&mut redis, &cache_key, &product, 60*6).await{
         eprintln!("Redis SET error : {}",error);
     }
 
@@ -219,11 +233,37 @@ async fn get_product_by_id(
     Ok(Json(product))
 }
 
-async fn delete_rpoduct(State(db): State<Db>,Path(id): Path<i32>)->Result<StatusCode,StatusCode>{
-    let de_product: sqlx::postgres::PgQueryResult=sqlx::query("DELETE FROM product WHERE id=$1").bind(id).execute(&db).await.unwrap();
-    if de_product.rows_affected()==0{
-        Err(StatusCode::NOT_FOUND)
-    }else{
-        Ok(StatusCode::NO_CONTENT)
+async fn delete_rpoduct(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<StatusCode, StatusCode> {
+
+    let result = sqlx::query(
+        "DELETE FROM product WHERE id = $1",
+    )
+    .bind(id)
+    .execute(&state.db)
+    .await
+    .map_err(|error| {
+        eprintln!("Database error: {}", error);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if result.rows_affected() == 0 {
+        return Err(StatusCode::NOT_FOUND);
     }
+
+    // Delete Redis cache
+    let cache_key = format!("product:{}", id);
+    let mut redis = state.redis.clone();
+
+    if let Err(error) = redis::cmd("DEL")
+        .arg(&cache_key)
+        .query_async::<()>(&mut redis)
+        .await
+    {
+        eprintln!("Redis DEL error: {}", error);
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }
