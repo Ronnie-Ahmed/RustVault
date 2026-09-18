@@ -10,8 +10,8 @@ use axum::{
 };
 
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize,Serialize, Clone, sqlx::FromRow)]
+//#[derive(Debug, Deserialize,Serialize, Clone,sqlx::FromRow)]
+#[derive(Debug, Deserialize,Serialize, Clone,sqlx::FromRow)]
 pub struct Product {
     id: i32,
     content: String,
