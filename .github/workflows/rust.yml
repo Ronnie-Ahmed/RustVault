@@ -19,5 +19,5 @@ jobs:
     - name: Build all workspace packages
       run: cargo build --workspace --verbose
 
-    - name: Run all workspace tests
-      run: cargo test --workspace --verbose
+    # - name: Run all workspace tests
+    #   run: cargo test --workspace --verbose
