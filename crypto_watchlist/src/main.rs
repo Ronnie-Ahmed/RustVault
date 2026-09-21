@@ -1,4 +1,7 @@
 mod errors;
+mod auth;
+mod models;
+
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
