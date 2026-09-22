@@ -24,6 +24,6 @@ impl IntoResponse for AppError {
         };
 
         tracing::warn!(staus =%status ,error =%message , "request failed");
-        Json(serde_json::json!({"error": message})).into_response()
+        (status, Json(serde_json::json!({ "error": message }))).into_response()
     }
 }

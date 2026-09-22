@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i32,
-    pub ext: usize,
+    pub exp: usize,
 }
 
 pub struct AuthUser {
@@ -40,7 +40,7 @@ pub fn create_jwt(user_id: i32, secret: &str) -> Result<String, AppError> {
 
     let claims = Claims {
         sub: user_id,
-        ext: expiration,
+        exp: expiration,
     };
     encode(
         &Header::default(),

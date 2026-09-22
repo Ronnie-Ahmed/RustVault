@@ -29,13 +29,13 @@ pub struct LoginResponse {
     pub token: String,
 }
 
-#[derive(Debug,Serialize,Clone,sqlx::FromRow)]
-pub struct WatchlistItem{
-    pub id:i32,
-    pub coin_id:String,
+#[derive(Debug, Serialize, Clone, sqlx::FromRow)]
+pub struct WatchlistItem {
+    pub id: i32,
+    pub coin_id: String,
 }
 
 #[derive(Deserialize)]
-pub struct AddWatchlisRequest{
-    pub coin_id:String,
+pub struct AddWatchlistRequest {
+    pub coin_id: String,
 }
