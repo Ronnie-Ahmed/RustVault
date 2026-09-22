@@ -1,12 +1,12 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use std::time::{Duration,Instant};
 
 #[derive(Clone)]
-pub struct ValueWithExpiry{
-     value:String,
-     expires_at:Option<Instant>
+pub struct ValueWithExpiry {
+    value: String,
+    expires_at: Option<Instant>,
 }
 
 impl ValueWithExpiry {
@@ -15,19 +15,16 @@ impl ValueWithExpiry {
     }
 }
 
-
 #[derive(Clone)]
-pub struct Db{
-    shared : Arc<RwLock<HashMap<String,ValueWithExpiry>>>,
+pub struct Db {
+    shared: Arc<RwLock<HashMap<String, ValueWithExpiry>>>,
 }
 
-impl Db{
-   pub fn new() -> Self {
+impl Db {
+    pub fn new() -> Self {
         Db {
             shared: Arc::new(RwLock::new(HashMap::new())),
         }
-
-        
     }
 
     pub fn start_background_cleaner(&self, interval: Duration) {
@@ -40,9 +37,9 @@ impl Db{
             }
         });
     }
-    pub async fn set(&self,key:String,value:String,ttl:Option<Duration>){
-        let mut map=self.shared.write().await;
-        let expires_at=ttl.map(|d|Instant::now() + d);
+    pub async fn set(&self, key: String, value: String, ttl: Option<Duration>) {
+        let mut map = self.shared.write().await;
+        let expires_at = ttl.map(|d| Instant::now() + d);
         map.insert(key, ValueWithExpiry { value, expires_at });
     }
 
@@ -51,7 +48,7 @@ impl Db{
             let map = self.shared.read().await;
             match map.get(key) {
                 Some(entry) if !entry.is_expired() => return Some(entry.value.clone()),
-                Some(_) => {} 
+                Some(_) => {}
                 None => return None,
             }
         }
@@ -81,5 +78,4 @@ impl Db{
     pub async fn len(&self) -> usize {
         self.shared.read().await.len()
     }
-
 }

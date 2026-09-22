@@ -1,7 +1,7 @@
 use thiserror::Error;
 
-#[derive(Debug,Error)]
-pub enum VaultError{
+#[derive(Debug, Error)]
+pub enum VaultError {
     #[error("unknown command '{0}'")]
     UnknownCommand(String),
 

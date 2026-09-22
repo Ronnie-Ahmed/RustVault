@@ -3,7 +3,7 @@ mod error;
 mod protocol;
 
 use db::Db;
-use protocol::{parse_command, Command};
+use protocol::{Command, parse_command};
 
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -12,13 +12,12 @@ use tracing::{error, info, warn};
 
 const ADDR: &str = "127.0.0.1:6380";
 
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let db = Db::new();
-    
+
     db.start_background_cleaner(Duration::from_secs(5));
 
     let listener = TcpListener::bind(ADDR).await?;
@@ -26,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         let (socket, addr) = listener.accept().await?;
-        let db = db.clone(); 
+        let db = db.clone();
 
         tokio::spawn(async move {
             info!("Accepted A new Connection At: {addr}");
@@ -39,13 +38,13 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-
 async fn handle_connection(socket: TcpStream, db: Db) -> anyhow::Result<()> {
-
     let (reader, mut writer) = socket.into_split();
     let mut lines = BufReader::new(reader).lines();
 
-    writer.write_all(b"RustVault ready. Try: PING, SET k v, GET k, SET k v EX 10, DEL k\n").await?;
+    writer
+        .write_all(b"RustVault ready. Try: PING, SET k v, GET k, SET k v EX 10, DEL k\n")
+        .await?;
 
     while let Some(line) = lines.next_line().await? {
         if line.trim().is_empty() {
@@ -60,7 +59,6 @@ async fn handle_connection(socket: TcpStream, db: Db) -> anyhow::Result<()> {
 
     Ok(())
 }
-
 
 async fn execute_line(line: &str, db: &Db) -> String {
     match parse_command(line) {

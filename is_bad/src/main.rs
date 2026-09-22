@@ -24,6 +24,6 @@
 //     }
 // }
 
-fn main(){
+fn main() {
     println!("Hello Worlds")
 }

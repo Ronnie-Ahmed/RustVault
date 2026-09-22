@@ -25,7 +25,7 @@ impl Solution {
     pub fn invert_tree(root: Option<Rc<RefCell<TreeNode>>>) -> Option<Rc<RefCell<TreeNode>>> {
         if let Some(ref node) = root {
             let mut node_borrow = node.borrow_mut();
-            let node=&mut *node_borrow;
+            let node = &mut *node_borrow;
             std::mem::swap(&mut node.left, &mut node.right);
             Self::invert_tree(node_borrow.left.clone());
             Self::invert_tree(node_borrow.right.clone());

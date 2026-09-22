@@ -9,7 +9,7 @@ fn add_digits(num: i32) -> i32 {
             temp_vec.push(temp % 10);
             temp /= 10;
         }
-    
+
         temp = temp_vec.iter().sum();
         temp_vec.clear();
     }
@@ -18,11 +18,11 @@ fn add_digits(num: i32) -> i32 {
 // 38 3,   8 8
 
 fn main() {
-//     println!("Hello, world!");
+    //     println!("Hello, world!");
 
-//     let test: Vec<i32> = vec![1, 2, 3, 4];
-//     let add: i32 = test.iter().sum();
-//     println!("{}", add);
+    //     let test: Vec<i32> = vec![1, 2, 3, 4];
+    //     let add: i32 = test.iter().sum();
+    //     println!("{}", add);
 
-println!("{}",add_digits(38));
+    println!("{}", add_digits(38));
 }

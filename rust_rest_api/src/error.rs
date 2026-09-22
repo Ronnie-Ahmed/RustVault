@@ -1,7 +1,7 @@
 use axum::{
-    http::StatusCode,
-    response::{Response,IntoResponse},
     Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use serde_json::json;
 use thiserror::Error;
@@ -34,9 +34,10 @@ impl IntoResponse for AppError {
             AppError::InvalidCredentials | AppError::Unauthorized => {
                 (StatusCode::UNAUTHORIZED, self.to_string())
             }
-            AppError::DatabaseError(_) | AppError::PasswordHashError | AppError::TokenError => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
-            }
+            AppError::DatabaseError(_) | AppError::PasswordHashError | AppError::TokenError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
         };
 
         let body = Json(json!({

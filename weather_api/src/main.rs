@@ -1,5 +1,8 @@
+use axum::{
+    Json, Router, extract::Query, http::StatusCode, response::IntoResponse, response::Response,
+    routing::get,
+};
 use serde::Deserialize;
-use axum::{Router,routing::get,extract::Query,Json,http::StatusCode,response::IntoResponse,response::Response};
 use serde::Serialize;
 #[derive(Deserialize)]
 struct GeocodingResponse {
@@ -19,7 +22,7 @@ struct ForcastResponse {
     current_weather: CurrentWeather,
 }
 
-#[derive(Deserialize, Serialize,Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct CurrentWeather {
     temperature: f64,
     windspeed: f64,
@@ -27,11 +30,11 @@ struct CurrentWeather {
 }
 
 #[derive(Deserialize)]
-struct WeatherParams{
-    city:String,
+struct WeatherParams {
+    city: String,
 }
 
-enum ApiError{
+enum ApiError {
     NotFound(String),
     UpstreamError(String),
 }
@@ -45,18 +48,17 @@ impl IntoResponse for ApiError {
     }
 }
 
-
-async fn weather_handler(Query(params): Query<WeatherParams>)->Result<Json<CurrentWeather>,ApiError>{
-    let weather=get_weather_for_city(&params.city)
-        .await
-        .map_err(|e|{
-            if e=="City not found"{
-                ApiError::NotFound(e)
-            }else{
-                ApiError::UpstreamError(e)
-            }
-        })?;
-        Ok(Json(weather))
+async fn weather_handler(
+    Query(params): Query<WeatherParams>,
+) -> Result<Json<CurrentWeather>, ApiError> {
+    let weather = get_weather_for_city(&params.city).await.map_err(|e| {
+        if e == "City not found" {
+            ApiError::NotFound(e)
+        } else {
+            ApiError::UpstreamError(e)
+        }
+    })?;
+    Ok(Json(weather))
 }
 
 #[tokio::main]
@@ -74,8 +76,8 @@ async fn main() {
     //     Err(e)=>println!("Error {:?}",e),
     // }
 
-    let app=Router::new().route("/weather", get(weather_handler));
-    let listener=tokio::net::TcpListener::bind("0.0.0.0:3002").await.unwrap();
+    let app = Router::new().route("/weather", get(weather_handler));
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3002").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 

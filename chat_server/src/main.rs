@@ -11,7 +11,7 @@ use tokio::sync::broadcast;
 #[derive(Clone)]
 struct AppState {
     tx: broadcast::Sender<String>,
-    db:sqlx::PgPool
+    db: sqlx::PgPool,
 }
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
@@ -19,14 +19,13 @@ async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl
 }
 
 async fn handle_socket(mut socket: WebSocket, state: AppState) {
-
-    let history=sqlx::query_scalar::<_,String>(
-        "SELECT content FROM messages ORDER BY id ASC LIMIT 50"
-    ).fetch_all(&state.db)
-    .await
-    .unwrap_or_default();
-    for msg in history{
-        if socket.send(Message::Text(msg.into())).await.is_err(){
+    let history =
+        sqlx::query_scalar::<_, String>("SELECT content FROM messages ORDER BY id ASC LIMIT 50")
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default();
+    for msg in history {
+        if socket.send(Message::Text(msg.into())).await.is_err() {
             return;
         }
     }
@@ -61,14 +60,14 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    let database_url=std::env::var("DATABASE_URL").expect("DATABASE URL must be set");
-    let pool=sqlx::postgres::PgPoolOptions::new()
-            .max_connections(5)
-            .connect(&database_url)
-            .await
-            .expect("Failed to connect to database");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE URL must be set");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await
+        .expect("Failed to connect to database");
     let (tx, _rx) = broadcast::channel(100);
-    let state = AppState { tx ,db:pool };
+    let state = AppState { tx, db: pool };
     let app = Router::new()
         .route("/ws", get(ws_handler))
         .with_state(state);

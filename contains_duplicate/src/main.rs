@@ -22,15 +22,14 @@ pub fn contains_duplicate2(nums: Vec<i32>) -> bool {
 }
 
 pub fn contains_duplicate3(nums: Vec<i32>) -> bool {
-    let mut seen=HashSet::with_capacity(nums.len());
+    let mut seen = HashSet::with_capacity(nums.len());
     !nums.into_iter().all(|i| seen.insert(i))
 }
 pub fn contains_duplicate4(nums: Vec<i32>) -> bool {
-    let mut value=nums.clone();
+    let mut value = nums.clone();
     value.sort_unstable();
     value.windows(2).any(|w| w[0] == w[1])
 }
-
 
 fn main() {
     let value = contains_duplicate3(vec![1, 2, 3, 4]);

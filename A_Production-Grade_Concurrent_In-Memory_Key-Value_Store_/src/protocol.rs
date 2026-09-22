@@ -1,18 +1,18 @@
 use crate::error::VaultError;
 use std::time::Duration;
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Command {
-    Set{
-        key:String,
-        value:String,
-        ttl:Option<Duration>,
+    Set {
+        key: String,
+        value: String,
+        ttl: Option<Duration>,
     },
-    Get{
-        key:String,
+    Get {
+        key: String,
     },
-    Del{
-        key:String,
+    Del {
+        key: String,
     },
     Ping,
 }
@@ -28,17 +28,20 @@ pub fn parse_command(line: &str) -> Result<Command, VaultError> {
         "PING" => Ok(Command::Ping),
 
         "GET" => match parts.as_slice() {
-            [_, key] => Ok(Command::Get { key: key.to_string() }),
+            [_, key] => Ok(Command::Get {
+                key: key.to_string(),
+            }),
             _ => Err(VaultError::WrongArgCount("GET".into())),
         },
 
         "DEL" => match parts.as_slice() {
-            [_, key] => Ok(Command::Del { key: key.to_string() }),
+            [_, key] => Ok(Command::Del {
+                key: key.to_string(),
+            }),
             _ => Err(VaultError::WrongArgCount("DEL".into())),
         },
 
         "SET" => match parts.as_slice() {
-          
             [_, key, value] => Ok(Command::Set {
                 key: key.to_string(),
                 value: value.to_string(),

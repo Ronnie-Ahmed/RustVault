@@ -4,15 +4,13 @@ pub fn contains_nearby_duplicate(nums: Vec<i32>, k: i32) -> bool {
     for (i, value) in nums.iter().enumerate() {
         if check.contains_key(value) {
             let prev_value = check.get(value).unwrap();
-            let diff = i-prev_value;
-           
-        
+            let diff = i - prev_value;
+
             if diff <= k as usize {
                 return true;
             }
-        } 
-            check.insert(*value, i);
-        
+        }
+        check.insert(*value, i);
     }
     false
 }

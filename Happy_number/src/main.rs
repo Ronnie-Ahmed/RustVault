@@ -51,13 +51,13 @@ pub fn happy_number(n: i32) -> bool {
 // 19 = 9
 
 pub fn is_happy(n: i32) -> bool {
-   let mut seen =HashSet::new();
-   let mut num=n;
-   while num !=1 && !seen.contains(&num){
+    let mut seen = HashSet::new();
+    let mut num = n;
+    while num != 1 && !seen.contains(&num) {
         seen.insert(num);
-        num=squared_number(num);
-   }
-   n==1
+        num = squared_number(num);
+    }
+    n == 1
 }
 
 pub fn squared_number(mut num: i32) -> i32 {

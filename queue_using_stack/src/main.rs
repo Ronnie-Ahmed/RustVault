@@ -39,7 +39,7 @@ impl MyQueue {
                 temp.push(value);
             }
         }
-        let return_value = temp[temp.len()-1];
+        let return_value = temp[temp.len() - 1];
         for num in temp.iter().rev() {
             self.elements.push(*num);
         }

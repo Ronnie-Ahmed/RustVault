@@ -28,4 +28,4 @@ members = [
     "Task_Api",
     "ugly_number",
     "weather_api"
-]
+, "rate_limiter", "word_pattarn", "crypto_watchlist"]
