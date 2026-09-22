@@ -66,7 +66,7 @@ struct RateLimiter {
 //     let server=Server{};
 //     if let Err(e) = server.run().await {
 //         eprintln!("Server Error: {}",e)
-        
+
 //     };
 //     // let limiter = RateLimiter {
 //     //     requests: Arc::new(Mutex::new(HashMap::new())),
@@ -96,16 +96,15 @@ struct RateLimiter {
 // //     "Hello World".to_string()
 // // }
 
+use axum::{Router, middleware, routing::get};
 use axum::{
+    extract::Request,
     extract::{ConnectInfo, State},
     http::StatusCode,
     middleware::Next,
-    extract::Request,
     response::Response,
 };
 use std::net::SocketAddr;
-use axum::{Router, routing::get, middleware};
-
 
 async fn rate_limit_middleware(
     State(limiter): State<RateLimiter>,
@@ -115,7 +114,9 @@ async fn rate_limit_middleware(
     // temporarily hardcode instead of using ConnectInfo
     let now = Instant::now();
     let mut requests = limiter.requests.lock().unwrap();
-    let timestamps = requests.entry("127.0.0.1".parse().unwrap()).or_insert_with(Vec::new);
+    let timestamps = requests
+        .entry("127.0.0.1".parse().unwrap())
+        .or_insert_with(Vec::new);
 
     timestamps.retain(|&time| now.duration_since(time) < limiter.window);
 
@@ -144,10 +145,8 @@ async fn main() {
     //     .route("/hello", get(hello))
     //     .layer(middleware::from_fn_with_state(limiter.clone(), rate_limit_middleware))
     //     .with_state(limiter);
-     let app = Router::new()
-        .route("/hello", get(hello));
-        
-        
+    let app = Router::new().route("/hello", get(hello));
+
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3004").await.unwrap();
     println!("Rate limiter running on http://0.0.0.0:3004");
 

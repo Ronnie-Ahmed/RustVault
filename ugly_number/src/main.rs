@@ -1,4 +1,3 @@
-
 pub fn is_ugly(n: i32) -> bool {
     // Ugly numbers must be strictly positive (> 0)
     if n <= 0 {

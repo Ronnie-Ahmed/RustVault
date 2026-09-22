@@ -1,26 +1,26 @@
 mod auth;
+mod cache;
 mod coingecko;
 mod errors;
 mod models;
-mod cache;
 
 use auth::{AuthUser, create_jwt, hash_password, verify_password};
 use axum::extract::Path;
 use axum::routing::{delete, get};
-use std::collections::HashMap;
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use errors::AppError;
 use models::{
     AddWatchlistRequest, LoginRequest, LoginResponse, RegisterRequest, User, UserWithHash,
     WatchlistItem,
 };
+use std::collections::HashMap;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Clone)]
 struct AppState {
     db: sqlx::PgPool,
     jwt_secret: String,
-    redis:redis::aio::MultiplexedConnection,
+    redis: redis::aio::MultiplexedConnection,
 }
 
 async fn register(
@@ -40,13 +40,12 @@ async fn register(
     Ok(StatusCode::CREATED)
 }
 
-
 async fn get_prices(
     State(state): State<AppState>,
     auth: AuthUser,
 ) -> Result<Json<HashMap<String, f64>>, AppError> {
     let items = sqlx::query_as::<_, WatchlistItem>(
-        "SELECT id, coin_id FROM watchlist_items WHERE user_id = $1"
+        "SELECT id, coin_id FROM watchlist_items WHERE user_id = $1",
     )
     .bind(auth.user_id)
     .fetch_all(&state.db)
@@ -58,7 +57,8 @@ async fn get_prices(
     let mut redis = state.redis.clone();
     let cache_key = format!("prices:{}", coin_ids.join(","));
 
-    if let Ok(Some(cached)) = cache::cache_get::<HashMap<String, f64>>(&mut redis, &cache_key).await {
+    if let Ok(Some(cached)) = cache::cache_get::<HashMap<String, f64>>(&mut redis, &cache_key).await
+    {
         tracing::info!(user_id = auth.user_id, "prices cache hit");
         return Ok(Json(cached));
     }
@@ -163,7 +163,7 @@ async fn main() {
         )
         .init();
     let redis_client =
-        redis::Client::open("redis://127.0.0.1:6380/").expect("Invalid Redis Connection");
+        redis::Client::open("redis://127.0.0.1:6381/").expect("Invalid Redis Connection");
     let redis_conn = redis_client
         .get_multiplexed_async_connection()
         .await
@@ -182,17 +182,17 @@ async fn main() {
     let state = AppState {
         db: pool,
         jwt_secret,
-            redis: redis_conn,
-
+        redis: redis_conn,
     };
 
-    let prices = coingecko::fetch_prices(&["bitcoin".to_string(), "ethereum".to_string()]).await;
-    tracing::info!(?prices, "test fetch");
+    // let prices = coingecko::fetch_prices(&["bitcoin".to_string(), "ethereum".to_string()]).await;
+    // tracing::info!(?prices, "test fetch");
     let app = Router::new()
         .route("/register", post(register))
         .route("/login", post(login))
         .route("/watchlist", post(add_to_watchlist).get(list_watchlist))
         .route("/watchlist/{id}", delete(remove_from_watchlist))
+        .route("/prices", get(get_prices))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3005").await.unwrap();

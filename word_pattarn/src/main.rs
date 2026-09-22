@@ -17,13 +17,12 @@ pub fn word_pattern(pattern: String, s: String) -> bool {
                 return false;
             }
         } else {
-           let target_value = &words[i];
+            let target_value = &words[i];
 
-       
             let value_already_used = map.values().any(|val| val == target_value);
 
             if value_already_used {
-                return false; 
+                return false;
             }
 
             map.insert(chars[i], words[i].clone());
