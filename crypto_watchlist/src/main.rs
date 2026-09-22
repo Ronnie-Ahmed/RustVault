@@ -4,23 +4,105 @@ mod coingecko;
 mod errors;
 mod models;
 
+use axum::middleware;
 use auth::{AuthUser, create_jwt, hash_password, verify_password};
 use axum::extract::Path;
 use axum::routing::{delete, get};
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use errors::AppError;
 use models::{
-    AddWatchlistRequest, LoginRequest, LoginResponse, RegisterRequest, User, UserWithHash,
-    WatchlistItem,
+    AddWatchlistRequest, Alert, CreateAlertRequest, LoginRequest, LoginResponse, RegisterRequest,
+     UserWithHash, WatchlistItem,
 };
+use std::sync::{Arc, Mutex};
+use std::net::IpAddr;
+use std::time::{Duration, Instant};
+use axum::{middleware::Next, extract::{ConnectInfo, Request}, response::Response};
+
+use std::net::SocketAddr;
+
 use std::collections::HashMap;
 use tracing_subscriber::EnvFilter;
+use axum::response::IntoResponse;
 
-#[derive(Clone)]
+
+const MAX_REQUESTS: usize = 20;
+const WINDOW: Duration = Duration::from_secs(10);
+
+
+#[derive(Clone, Debug)]
 struct AppState {
     db: sqlx::PgPool,
     jwt_secret: String,
     redis: redis::aio::MultiplexedConnection,
+     rate_limits: Arc<Mutex<HashMap<IpAddr, Vec<Instant>>>>,
+}
+
+async fn rate_limit_middleware(
+    State(state): State<AppState>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let ip = addr.ip();
+    let now = Instant::now();
+
+    let mut limits = state.rate_limits.lock().unwrap();
+    let timestamps = limits.entry(ip).or_insert_with(Vec::new);
+
+    timestamps.retain(|&t| now.duration_since(t) < WINDOW);
+
+    if timestamps.len() >= MAX_REQUESTS {
+        return AppError::BadRequest("rate limit exceeded".to_string()).into_response();
+    }
+
+    timestamps.push(now);
+    drop(limits);
+
+    next.run(request).await
+}
+
+async fn create_alert(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(payload): Json<CreateAlertRequest>,
+) -> Result<(StatusCode, Json<Alert>), AppError> {
+    if payload.direction != "above" && payload.direction != "below" {
+        return Err(AppError::BadRequest(
+            "direction must be 'above' or 'below'".to_string(),
+        ));
+    }
+
+    let alert = sqlx::query_as::<_, Alert>(
+        "INSERT INTO alerts (user_id, coin_id, target_price, direction)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, coin_id, target_price, direction, triggered",
+    )
+    .bind(auth.user_id)
+    .bind(&payload.coin_id)
+    .bind(payload.target_price)
+    .bind(&payload.direction)
+    .fetch_one(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    tracing::info!(user_id = auth.user_id, coin_id = %payload.coin_id, "alert created");
+    Ok((StatusCode::CREATED, Json(alert)))
+}
+
+async fn list_alerts(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> Result<Json<Vec<Alert>>, AppError> {
+    let alerts = sqlx::query_as::<_, Alert>(
+        "SELECT id, coin_id, target_price, direction, triggered FROM alerts WHERE user_id = $1 ORDER BY id"
+    )
+    .bind(auth.user_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(alerts))
 }
 
 async fn register(
@@ -118,6 +200,65 @@ async fn add_to_watchlist(
     tracing::info!(user_id = auth.user_id, coin_id = %payload.coin_id, "added to watchlist");
     Ok((StatusCode::CREATED, Json(item)))
 }
+
+async fn run_alert_checker(db: sqlx::PgPool) {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+
+    loop {
+        interval.tick().await;
+        tracing::info!("running alert check");
+
+        if let Err(e) = check_alerts(&db).await {
+            tracing::error!(error = %e, "alert check failed");
+        }
+    }
+}
+
+async fn check_alerts(db: &sqlx::PgPool) -> Result<(), AppError> {
+    let alerts = sqlx::query_as::<_, (i32, String, f64, String)>(
+        "SELECT id,coin_id,target_price,direction FROM alerts WHERE triggered=false",
+    )
+    .fetch_all(db)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+    if alerts.is_empty() {
+        return Ok(());
+    }
+
+    let coin_ids: Vec<String> = alerts
+        .iter()
+        .map(|(_, coin_id, _, _)| coin_id.clone())
+        .collect();
+    let coin_ids: Vec<String> = coin_ids
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    let prices = coingecko::fetch_prices(&coin_ids).await?;
+
+    for (id, coin_id, target_price, direction) in alerts {
+        if let Some(&current_price) = prices.get(&coin_id) {
+            let should_trigger = match direction.as_str() {
+                "above" => current_price >= target_price,
+                "below" => current_price <= target_price,
+                _ => false,
+            };
+
+            if should_trigger {
+                sqlx::query("UPDATE alerts SET triggered = true WHERE id = $1")
+                    .bind(id)
+                    .execute(db)
+                    .await
+                    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+                tracing::info!(alert_id = id, coin_id = %coin_id, current_price, target_price, "alert triggered");
+            }
+        }
+    }
+
+    Ok(())
+}
+
 async fn list_watchlist(
     State(state): State<AppState>,
     auth: AuthUser,
@@ -179,26 +320,41 @@ async fn main() {
         .expect("failed to connect to database");
     tracing::info!("connected to database");
 
-    let state = AppState {
-        db: pool,
-        jwt_secret,
-        redis: redis_conn,
-    };
+  let state = AppState {
+    db: pool,
+    jwt_secret,
+    redis: redis_conn,
+    rate_limits: Arc::new(Mutex::new(HashMap::new())),
+};
 
     // let prices = coingecko::fetch_prices(&["bitcoin".to_string(), "ethereum".to_string()]).await;
     // tracing::info!(?prices, "test fetch");
+    let db_for_checker = state.db.clone();
+    tokio::spawn(run_alert_checker(db_for_checker));
     let app = Router::new()
         .route("/register", post(register))
         .route("/login", post(login))
         .route("/watchlist", post(add_to_watchlist).get(list_watchlist))
         .route("/watchlist/{id}", delete(remove_from_watchlist))
         .route("/prices", get(get_prices))
+        .route("/alerts", post(create_alert).get(list_alerts))
+         .layer(middleware::from_fn_with_state(state.clone(), rate_limit_middleware))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3005").await.unwrap();
     tracing::info!("server listening on http://0.0.0.0:3005");
 
-    axum::serve(listener, app).await.unwrap();
-
+    axum::serve(
+    listener,
+    app.into_make_service_with_connect_info::<SocketAddr>(),
+)
+.await
+.unwrap();
     tracing::info!("Starting Crypto_watchlist server");
+}
+
+fn assert_send_sync<T: Send + Sync>() {}
+
+fn _check_appstate() {
+    assert_send_sync::<AppState>();
 }

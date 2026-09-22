@@ -39,3 +39,19 @@ pub struct WatchlistItem {
 pub struct AddWatchlistRequest {
     pub coin_id: String,
 }
+
+#[derive(Debug, Serialize, Clone, sqlx::FromRow)]
+pub struct Alert {
+    pub id: i32,
+    pub coin_id: String,
+    pub target_price: f64,
+    pub direction: String,
+    pub triggered: bool,
+}
+
+#[derive(Deserialize)]
+pub struct CreateAlertRequest {
+    pub coin_id: String,
+    pub target_price: f64,
+    pub direction: String,
+}
