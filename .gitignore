@@ -2,7 +2,10 @@
 **/target/
 **/Cargo.lock
 **/.env
-
+/target
+/Cargo.lock
+Cargo.lock
+target
 # OS
 .DS_Store
 Thumbs.db
