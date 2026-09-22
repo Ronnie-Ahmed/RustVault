@@ -23,44 +23,40 @@ use std::net::SocketAddr;
 
 use std::collections::HashMap;
 use tracing_subscriber::EnvFilter;
-use axum::response::IntoResponse;
-
 
 const MAX_REQUESTS: usize = 20;
 const WINDOW: Duration = Duration::from_secs(10);
-
 
 #[derive(Clone, Debug)]
 struct AppState {
     db: sqlx::PgPool,
     jwt_secret: String,
     redis: redis::aio::MultiplexedConnection,
-     rate_limits: Arc<Mutex<HashMap<IpAddr, Vec<Instant>>>>,
 }
 
-async fn rate_limit_middleware(
-    State(state): State<AppState>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    request: Request,
-    next: Next,
-) -> Response {
-    let ip = addr.ip();
-    let now = Instant::now();
+// async fn rate_limit_middleware(
+//     State(state): State<AppState>,
+//     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+//     request: Request,
+//     next: Next,
+// ) -> Result<Response, AppError> {
+//     let ip = addr.ip();
+//     let now = Instant::now();
 
-    let mut limits = state.rate_limits.lock().unwrap();
-    let timestamps = limits.entry(ip).or_insert_with(Vec::new);
+//     let mut limits = state.rate_limits.lock().unwrap();
+//     let timestamps = limits.entry(ip).or_insert_with(Vec::new);
 
-    timestamps.retain(|&t| now.duration_since(t) < WINDOW);
+//     timestamps.retain(|&t| now.duration_since(t) < WINDOW);
 
-    if timestamps.len() >= MAX_REQUESTS {
-        return AppError::BadRequest("rate limit exceeded".to_string()).into_response();
-    }
+//     if timestamps.len() >= MAX_REQUESTS {
+//         return Err(AppError::BadRequest("rate limit exceeded".to_string()));
+//     }
 
-    timestamps.push(now);
-    drop(limits);
+//     timestamps.push(now);
+//     drop(limits);
 
-    next.run(request).await
-}
+//     Ok(next.run(request).await)
+// }
 
 async fn create_alert(
     State(state): State<AppState>,
@@ -320,12 +316,11 @@ async fn main() {
         .expect("failed to connect to database");
     tracing::info!("connected to database");
 
-  let state = AppState {
-    db: pool,
-    jwt_secret,
-    redis: redis_conn,
-    rate_limits: Arc::new(Mutex::new(HashMap::new())),
-};
+    let state = AppState {
+        db: pool,
+        jwt_secret,
+        redis: redis_conn,
+    };
 
     // let prices = coingecko::fetch_prices(&["bitcoin".to_string(), "ethereum".to_string()]).await;
     // tracing::info!(?prices, "test fetch");
@@ -338,23 +333,11 @@ async fn main() {
         .route("/watchlist/{id}", delete(remove_from_watchlist))
         .route("/prices", get(get_prices))
         .route("/alerts", post(create_alert).get(list_alerts))
-         .layer(middleware::from_fn_with_state(state.clone(), rate_limit_middleware))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3005").await.unwrap();
     tracing::info!("server listening on http://0.0.0.0:3005");
 
-    axum::serve(
-    listener,
-    app.into_make_service_with_connect_info::<SocketAddr>(),
-)
-.await
-.unwrap();
+ axum::serve(listener, app).await.unwrap();
     tracing::info!("Starting Crypto_watchlist server");
-}
-
-fn assert_send_sync<T: Send + Sync>() {}
-
-fn _check_appstate() {
-    assert_send_sync::<AppState>();
 }
