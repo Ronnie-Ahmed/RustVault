@@ -29,4 +29,4 @@ members = [
     "weather_api",
     "rate_limiter",
     "word_pattarn"
-]
+, "Range_sum", "power_of_three"]
