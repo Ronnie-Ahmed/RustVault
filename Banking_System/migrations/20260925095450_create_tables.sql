@@ -2,7 +2,7 @@ CREATE TABLE nid(
     id_no TEXT NOT NULL UNIQUE PRIMARY KEY,
     name TEXT NOT NULL,
     age INT NOT NULL,
-    location TEXT NOT NULL,
+    addr  TEXT NOT NULL,
     father_name TEXT NOT NULL,
     mother_name TEXT NOT NULL
 );
