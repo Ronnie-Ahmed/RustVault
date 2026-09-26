@@ -23,7 +23,6 @@ impl std::fmt::Display for AppError {
             AppError::Internal(msg) => write!(f, "{}", msg),
             AppError::UpstreamError(msg) => write!(f, "{}", msg),
             AppError::TooManyRequests(msg) => write!(f, "{}", msg),
-            
         }
     }
 }

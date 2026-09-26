@@ -1,4 +1,3 @@
-
 use crate::errors::AppError;
 use argon2::password_hash::{SaltString, rand_core::OsRng};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
