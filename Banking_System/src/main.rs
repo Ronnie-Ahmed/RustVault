@@ -202,3 +202,16 @@ pub async fn deposit(
     .bind(auth.user_id).fetch_optional(&state.db).await.map_err(|e| AppError::NotFound(e.to_string()))?.ok_or(AppError::NotFound("bank account not found".to_string()))?;
     Ok(Json(updated))
 }
+
+
+pub async fn get_balance(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    
+) -> Result<Json<Userbalance>, AppError> {
+    let balance=sqlx::query_as::<_,Userbalance>(
+        "SELECT (user_id,balance) FROM bank_information  WHERE user_id = {$1} RETURNING user_id,balance"
+    )
+    .bind(auth.user_id).fetch_optional(&state.db).await.map_err(|e| AppError::NotFound(e.to_string()))?.ok_or(AppError::NotFound("bank account not found".to_string()))?;
+    Ok(Json(balance))
+}

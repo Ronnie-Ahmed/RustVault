@@ -39,7 +39,7 @@ pub struct Nid {
     pub mother_name: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct CreateNid {
     pub name: String,
     pub age: i32,
@@ -47,18 +47,30 @@ pub struct CreateNid {
     pub father_name: String,
     pub mother_name: String,
 }
-#[derive(Debug, Clone, Deserialize, Serialize, sqlx::FromRow)]
-pub struct CreateUser {
-    pub username: String,
-    pub password: String,
-    pub id_no: String,
+#[derive(Debug,Clone,Deserialize,Serialize,sqlx::FromRow)]
+pub struct CreateUser{
+    pub username:String,
+    pub password:String,
+    pub id_no:String
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct Userbalance {
-    pub user_id: String,
-    pub balance: i64,
+
+#[derive(Debug,Clone,Serialize,Deserialize,sqlx::FromRow)]
+pub struct Userbalance{
+    pub user_id:String,
+    pub balance:i64,
 }
+#[derive(Deserialize)]
+pub struct DepositRequest {
+    pub amount: i64,
+}
+
+
+// #[derive(Debug,Deserialize,Serialize,sqlx::FromRow)]
+// pub struct bank_info{
+
+// }
+
 
 // BD-353CE724-209213
 
