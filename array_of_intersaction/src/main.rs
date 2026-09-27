@@ -4,7 +4,6 @@ pub fn intersection(nums1: Vec<i32>, nums2: Vec<i32>) -> Vec<i32> {
     if nums1.len() < nums2.len() {
         temp = nums1.clone();
         temp.sort_unstable();
-        temp.dedup();
         while temp.len() != 0 {
             let num = temp[0];
             if nums2.contains(&num) {
@@ -31,6 +30,26 @@ pub fn intersection(nums1: Vec<i32>, nums2: Vec<i32>) -> Vec<i32> {
     }
     temp2
 }
+
+// use std::collections::HashMap;
+// pub fn intersection3(nums1: Vec<i32>, nums2: Vec<i32>) -> Vec<i32> {
+//     let mut temp5: Vec<i32> = Vec::new();
+//     let mut temp:HashMap<i32,i32>=HashMap::new();
+//     let mut temp1:HashMap<i32,i32>=HashMap::new();
+
+//     for i in 0..nums1.len(){
+//         temp1.insert(i as i32, nums1[i]);
+//     }
+//       for i in 0..nums2.len(){
+//         temp.insert(i as i32, nums1[i]);
+//     }
+    
+//     temp1.
+
+
+
+//     temp5
+// }
 
 use std::collections::HashSet;
 pub fn intersection2(nums1: Vec<i32>, nums2: Vec<i32>) -> Vec<i32> {
