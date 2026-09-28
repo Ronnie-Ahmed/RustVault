@@ -57,11 +57,18 @@ pub struct CreateUser{
 
 #[derive(Debug,Clone,Serialize,Deserialize,sqlx::FromRow)]
 pub struct Userbalance{
-    pub user_id:String,
+    pub user_id:i32,
     pub balance:i64,
 }
 #[derive(Deserialize)]
 pub struct DepositRequest {
+    pub amount: i64,
+}
+
+
+#[derive(Deserialize)]
+pub struct TransferRequest {
+    pub to_user_id: i32,
     pub amount: i64,
 }
 

@@ -4,7 +4,6 @@ pub fn anargam(s: String, t: String) -> bool {
     if s.len() != t.len() {
         return false;
     }
-
     let mut count_s: HashMap<char, usize> = HashMap::new();
     let mut count_t: HashMap<char, usize> = HashMap::new();
 

@@ -3,15 +3,14 @@ mod db;
 mod errors;
 mod models;
 use auth::{AuthUser, create_jwt, hash_password, verify_password};
-use axum::{Json, Router, extract::State, routing::post};
+use axum::{Json, Router, extract::State, routing::post,routing::get};
 use models::{CreateNid, Nid};
 use reqwest::StatusCode;
 use tracing_subscriber::EnvFilter;
 
 use crate::{
-    errors::AppError,
-    models::{
-        CreateUser, DepositRequest, LoginRequest, LoginResponse, User, UserWithHash, Userbalance,
+    errors::AppError, models::{
+        CreateUser, DepositRequest, LoginRequest, LoginResponse, TransferRequest, User, UserWithHash, Userbalance,
     },
 };
 
@@ -49,6 +48,9 @@ async fn main() {
         .route("/login", post(login))
         .route("/register_nid_card", post(register_nid))
         .route("/create_bank_account", post(create_bank_account))
+        .route("/deposit", post(deposit))
+        .route("/balance", get(get_user_balance))
+        .route("/transfer", post(transfer))
         .with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3006").await.unwrap();
     tracing::info!("server Listening on http://0.0.0.0:3006");
@@ -197,21 +199,106 @@ pub async fn deposit(
     }
 
     let updated=sqlx::query_as::<_,Userbalance>(
-        "UPDATE bank_information SET balance=balance + {$1} WHERE user_id = {$2} RETURNING user_id,balance"
+        "UPDATE bank_information SET balance = balance + $1 WHERE user_id = $2 RETURNING user_id, balance"
     ).bind(payload.amount)
     .bind(auth.user_id).fetch_optional(&state.db).await.map_err(|e| AppError::NotFound(e.to_string()))?.ok_or(AppError::NotFound("bank account not found".to_string()))?;
     Ok(Json(updated))
 }
 
 
-pub async fn get_balance(
+pub async fn get_user_balance(
     State(state): State<AppState>,
     auth: AuthUser,
     
 ) -> Result<Json<Userbalance>, AppError> {
     let balance=sqlx::query_as::<_,Userbalance>(
-        "SELECT (user_id,balance) FROM bank_information  WHERE user_id = {$1} RETURNING user_id,balance"
+        "SELECT user_id,balance FROM bank_information  WHERE user_id = $1 "
     )
     .bind(auth.user_id).fetch_optional(&state.db).await.map_err(|e| AppError::NotFound(e.to_string()))?.ok_or(AppError::NotFound("bank account not found".to_string()))?;
     Ok(Json(balance))
+}
+
+pub async fn does_account_exist(db: &sqlx::PgPool, user_id: i32) -> Result<bool, AppError> {
+    let exists: Option<i32> = sqlx::query_scalar(
+        "SELECT user_id FROM bank_information WHERE user_id = $1"
+    )
+    .bind(user_id)
+    .fetch_optional(db)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(exists.is_some())
+}
+
+pub async fn get_balance(db:&sqlx::PgPool,user_id:i32)->Result<i64,AppError>{
+    if !does_account_exist(&db, user_id).await?{
+        return Err(AppError::NotFound("Bank acoount does not exist".to_string()));
+    }
+
+    let balance: Option<i64>=sqlx::query_scalar("SELECT balance FROM bank_information WHERE user_id= $1")
+        .bind(user_id).fetch_optional(db).await.map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(balance.unwrap())
+}
+
+pub async fn helper_transfer(
+    db: &sqlx::PgPool,
+    from_user_id: i32,
+    to_user_id: i32,
+    amount: i64,
+) -> Result<StatusCode, AppError> {
+    if amount <= 0 {
+        return Err(AppError::BadRequest("amount must be positive".to_string()));
+    }
+
+    let mut tx = db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let from_balance: i64 = sqlx::query_scalar(
+        "SELECT balance FROM bank_information WHERE user_id = $1 FOR UPDATE"
+    )
+    .bind(from_user_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?
+    .ok_or(AppError::NotFound("sender account not found".to_string()))?;
+
+    if amount > from_balance {
+        return Err(AppError::BadRequest("insufficient funds".to_string()));
+    }
+
+    let to_exists: Option<i64> = sqlx::query_scalar(
+        "SELECT balance FROM bank_information WHERE user_id = $1 FOR UPDATE"
+    )
+    .bind(to_user_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if to_exists.is_none() {
+        return Err(AppError::NotFound("recipient account not found".to_string()));
+    }
+
+    sqlx::query("UPDATE bank_information SET balance = balance - $1 WHERE user_id = $2")
+        .bind(amount)
+        .bind(from_user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    sqlx::query("UPDATE bank_information SET balance = balance + $1 WHERE user_id = $2")
+        .bind(amount)
+        .bind(to_user_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(StatusCode::ACCEPTED)
+}
+pub async fn transfer(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(payload): Json<TransferRequest>,
+) -> Result<StatusCode, AppError> {
+    helper_transfer(&state.db, auth.user_id, payload.to_user_id, payload.amount).await
 }
