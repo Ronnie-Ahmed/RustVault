@@ -4,20 +4,24 @@ mod coingecko;
 mod errors;
 mod models;
 
-use axum::middleware;
 use auth::{AuthUser, create_jwt, hash_password, verify_password};
 use axum::extract::Path;
+use axum::middleware;
 use axum::routing::{delete, get};
 use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
+use axum::{
+    extract::{ConnectInfo, Request},
+    middleware::Next,
+    response::Response,
+};
 use errors::AppError;
 use models::{
     AddWatchlistRequest, Alert, CreateAlertRequest, LoginRequest, LoginResponse, RegisterRequest,
-     UserWithHash, WatchlistItem,
+    UserWithHash, WatchlistItem,
 };
-use std::sync::{Arc, Mutex};
 use std::net::IpAddr;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use axum::{middleware::Next, extract::{ConnectInfo, Request}, response::Response};
 
 use std::net::SocketAddr;
 
@@ -338,6 +342,6 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3005").await.unwrap();
     tracing::info!("server listening on http://0.0.0.0:3005");
 
- axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
     tracing::info!("Starting Crypto_watchlist server");
 }
