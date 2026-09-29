@@ -20,7 +20,7 @@ jsonwebtoken = "9.3"
 argon2 = "0.5"
 
 # Error Handling & Environment Variables
-thiserror = "1.0"
+thiserror = "2.0"
 dotenvy = "0.15"
 
 # Logging & Observability
