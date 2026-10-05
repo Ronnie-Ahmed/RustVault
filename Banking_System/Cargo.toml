@@ -15,7 +15,7 @@ dotenvy = "0.15"
 chrono = { version = "0.4", features = ["serde"] }
 jsonwebtoken = "11"
 argon2 = "0.5"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 rand = "0.9"
 sha2 = "0.11"
 hex = "0.4"
