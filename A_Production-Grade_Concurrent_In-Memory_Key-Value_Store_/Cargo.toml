@@ -8,7 +8,7 @@ edition = "2024"
 tokio={version="1.38" , features=["full"]}
 
 # Production Error Handling
-thiserror="1.0"
+thiserror="2.0"
 anyhow="1.0"
 
 # Logging & Observability
