@@ -1,4 +1,4 @@
-pub fn max_area(height:Vec<i32>)->i32{
+pub fn max_area2(height:Vec<i32>)->i32{
     if height.len()==2{
         return height[0].min(height[1]);
     }
@@ -101,11 +101,46 @@ pub fn max_area(height:Vec<i32>)->i32{
   // 5 1 9
   // 1 9 5
 
+  pub fn max_area(height:Vec<i32>)->i32{
+    let mut temp=Vec::new();
+    for i in 0..height.len(){
+        let mut result=height[i];
+        for j in (i+1..height.len()).rev(){
+            if height[i] < height [j]{
+                result+=height[i];
+            }else{
+                result+=height[j];
+            }
+            println!("{}",height[j]);
+
+        }
+        temp.push(result);
+    }
+    println!("{:?}",temp);
+    *temp.iter().max().unwrap()
+  }
+
+  pub fn max_area3(height:Vec<i32>)->i32{
+    let (mut l,mut r)=(0usize,height.len()-1);
+    let mut best=0;
+    while l < r{
+        let area=height[l].min(height[r]) * (r-l) as i32;
+        best=best.max(area);
+
+        if height[l] < height[r]{
+            l+=1;
+        }else{
+            r-=1;
+        }
+    }
+    best
+  }
+
 
 fn main() {
     println!("Hello, world!");
-    let  height=vec![1,2,1];
-    println!("{:?}",max_area(height));
+    let  height=vec![1,8,6,2,5,4,8,3,7];
+    println!("{:?}",max_area3(height));
 }
 
 // 1 2 1
