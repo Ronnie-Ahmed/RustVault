@@ -49,6 +49,7 @@ pub fn convert(s:String,num_rows:i32)->String{
 
     for (index,num) in temp_value.iter().enumerate(){
         position.entry(*num).or_default().push(index)
+    
     }
     for num in temp{
         if let Some(pos) =position.get(&num){
