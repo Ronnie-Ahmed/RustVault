@@ -57,10 +57,36 @@ fn timeConversion2(s:&str)->String{
 //----------------------------------------------------
 //----------------------------------------------------
 
+
+fn modifySequence(arr: &[i32]) -> i32 {
+     let mut tails: Vec<i32> = Vec::new(); // LNDS via binary search
+
+    for (i, &x) in arr.iter().enumerate() {
+        let b = x - (i as i32 + 1);
+        if b < 0 {
+            continue;
+        }
+        // first index where tails[idx] > b (non-decreasing allows equal)
+        let idx = tails.partition_point(|&t| t <= b);
+        if idx == tails.len() {
+            tails.push(b);
+        } else {
+            tails[idx] = b;
+        }
+    }
+
+    (arr.len() - tails.len()) as i32
+}
+
+
 fn main() {
 //    println!("{}",timeConversion("07:05:45PM"));
 //    println!("{}",timeConversion2("07:05:45PM"));
 //-------------------------------------------------
+
+// println!("{:?}",modifySequence(&[1,2,8,4]));
+//-------------------------------------------------
+
 
 
 }
