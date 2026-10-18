@@ -1,0 +1,66 @@
+//----------------------------------------------------
+//--------Time Conversion-----------------------------
+
+fn timeConversion(s: &str)->String {
+    let  temp: Vec<char> = s.chars().collect();
+    let mut extension_part = String::new();
+    let mut hours = String::new();
+    let mut result=String::new();
+    let mut count = 0;
+    for i in &temp {
+        if *i == 'P' || *i == 'A' || *i == 'M' {
+            extension_part.push(*i);
+        }
+
+        if count < 2 {
+            hours.push(*i);
+            count += 1;
+        }
+    }
+
+    let mut _n_hours=hours.parse::<i32>().unwrap();
+    if extension_part=="PM"{
+        if _n_hours >=1 && _n_hours<=11{
+            _n_hours+=12;
+            result.push_str(&_n_hours.to_string());
+        }else{
+            result.push_str(&_n_hours.to_string());
+        }
+    }else{
+        if _n_hours >=1 && _n_hours<=11{
+            result.push_str(&_n_hours.to_string());
+        }else{
+            result.push_str(&"00".to_string());
+        }
+    }
+
+     for i in 0..temp.len() {
+        if i>1 && i<8{
+            result.push(temp[i]);
+        }
+    }
+    if result.len() !=8{
+        result.insert(0, '0');
+    }
+    result
+
+}
+
+fn timeConversion2(s:&str)->String{
+    let hour:u32=s[0..2].parse().unwrap();
+    let offset= if s.ends_with("PM"){12}else {
+        0
+    };
+    format!("{:02}{}",hour%12+offset,&s[2..8])
+}
+
+//----------------------------------------------------
+//----------------------------------------------------
+
+fn main() {
+//    println!("{}",timeConversion("07:05:45PM"));
+//    println!("{}",timeConversion2("07:05:45PM"));
+//-------------------------------------------------
+
+
+}
