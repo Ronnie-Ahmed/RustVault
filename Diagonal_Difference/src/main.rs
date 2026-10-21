@@ -3,7 +3,7 @@ fn diagonalDifference(arr: &[Vec<i32>])->i32 {
    let mut coun1=0;
    let mut coun2=arr.len()-1;
    let mut result=0;
-let mut result2=0;
+    let mut result2=0;
 
     for n in 0..arr.len(){
         for j in 0..arr[n].len(){

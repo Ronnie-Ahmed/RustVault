@@ -1,3 +1,4 @@
+
 fn compareTriplets(a: &[i32], b: &[i32]) -> Vec<i32> {
     let mut result:Vec<i32>=Vec::new();
     let mut result_a=0;
@@ -12,6 +13,9 @@ fn compareTriplets(a: &[i32], b: &[i32]) -> Vec<i32> {
             result_b+=0;
         }
     }
+    let a=0;
+    let b=2;
+    
     result.push(result_a);
     result.push(result_b);
     result
