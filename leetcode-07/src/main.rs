@@ -108,7 +108,7 @@ return the value
 
 fn main() {
     println!("Hello, world!");
-    let value = reverse(-2147483412);
+    let value = reverse3(-2147483412);
 
     println!("{}", value);
 }
