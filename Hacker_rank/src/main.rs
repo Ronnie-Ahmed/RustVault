@@ -78,6 +78,67 @@ fn modifySequence(arr: &[i32]) -> i32 {
     (arr.len() - tails.len()) as i32
 }
 
+fn gradingStudents(grades: &[i32])  {
+    let mut temp=Vec::new();
+    for n in grades{
+        if *n>37{
+            let modu=n%5;
+            if modu >= 3 && modu!=0{
+
+                temp.push(n+(5-modu));
+            }else if modu ==0 {
+                temp.push(*n);
+            }else {
+                temp.push(*n);
+            }
+
+        }else {
+            temp.push(*n);
+        }
+    }
+    println!("{:?}",temp);
+}
+
+
+pub fn next_greatest_letter(letters: Vec<char>, target: char) -> char {
+        
+        
+        let mut n_target=target as u8;
+
+        if n_target >=letters[letters.len()-1] as u8{
+            return letters[0]
+        }
+        for c in letters{
+            let value=c as u8;
+            if value > n_target{
+               n_target=value;
+               break;
+            }
+        }
+        n_target as char
+                
+}
+
+
+ pub fn min_cost_climbing_stairs(cost: Vec<i32>) -> i32 {
+       let n = cost.len();
+
+        // prev2 = dp[i-2], prev1 = dp[i-1]
+        let mut prev2 = 0;
+        let mut prev1 = 0;
+
+        for i in 2..=n {
+            let current = std::cmp::min(
+                prev1 + cost[i - 1],
+                prev2 + cost[i - 2],
+            );
+            prev2 = prev1;
+            prev1 = current;
+        }
+
+        prev1 // dp[n]
+}
+
 
 fn main() {
 //    println!("{}",timeConversion("07:05:45PM"));
@@ -86,6 +147,11 @@ fn main() {
 
 // println!("{:?}",modifySequence(&[1,2,8,4]));
 //-------------------------------------------------
+// gradingStudents(&[73,67,38,33]);
+// println!("{:?}",next_greatest_letter(vec!['c','f','j'],'a'));
+println!("{:?}",min_cost_climbing_stairs(vec![1,100,1,1,1,100,1,1,100,1]));
+// let a=vec![1,2,3];
+// println!("{}",a.len());
 
 
 
